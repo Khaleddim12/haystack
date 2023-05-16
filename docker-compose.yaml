@@ -1,0 +1,98 @@
+services:
+  #postgres database
+  db:
+    restart: on-failure
+    image: postgres
+    volumes:
+      - db:/var/lib/postgresql/data
+    ports:
+      - 8001:5432
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    container_name: postgres_db
+
+  #elasticsearch configuration 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.0
+    container_name: elasticsearch
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data-volume:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+
+  kibana:
+    container_name: kibana
+    labels:
+      com.example.service: "kibana"
+      com.example.description: "Data visualisation and for log aggregation"
+    image: docker.elastic.co/kibana/kibana:7.4.0
+    restart: always
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+
+
+  rest_app:
+    build: .
+    container_name: rest_container
+    labels:
+      com.example.service: "web"
+      com.example.description: "Use for the main web process"
+    restart: always
+    volumes:
+      - .:/django
+      - staticfiles:/django/staticfiles
+      - media:/django/mediafiles
+    ports:
+      - 8000:8000
+    image: python:3.11-slim-buster
+    environment:
+      - HAYSTACK_CONNECTIONS=default
+    command: gunicorn rest_project.wsgi --bind 0.0.0.0:8000  --timeout 1800
+    depends_on:
+      - db
+      - elasticsearch
+      - kibana
+
+  #nginx server docker image
+  nginx:
+    restart: on-failure
+    container_name: nginx
+    image: nginx:stable-alpine
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - staticfiles:/staticfiles
+      - media:/mediafiles
+    ports:
+      - 80:80
+    depends_on:
+      - rest_app
+      - elasticsearch
+
+
+volumes:
+  staticfiles:
+  media:
+  elasticsearch-data:
+  db:
+  elasticsearch-data-volume:
+    driver: local
