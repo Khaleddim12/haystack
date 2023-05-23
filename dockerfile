@@ -21,10 +21,3 @@ RUN pip install  -r /django/requirements.txt
 # copy project
 COPY . .
 
-RUN python manage.py collectstatic --noinput
-RUN python manage.py makemigrations
-RUN python manage.py makemigrations rest_app
-
-# run migrations at the end
-CMD python manage.py migrate && python manage.py search_index --rebuild
-COPY . .

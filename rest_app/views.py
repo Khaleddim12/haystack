@@ -87,76 +87,31 @@ def movie_pk(request, pk):
 from .search_indexes import MovieIndex
 from haystack.query import SearchQuerySet
 
+from urllib.parse import unquote
 
-from rest_framework.pagination import LimitOffsetPagination
 
 from functools import reduce
+from drf_haystack.viewsets import HaystackViewSet
 
-
-class SearchViewElk(APIView, LimitOffsetPagination):
-
-    default_limit = 10
+class SearchViewElk(HaystackViewSet):
+    index_models = [Movie]
     serializer_class = MovieHayStackSerializer
 
-    def get(self, request):
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
 
-        # get the query params
-        query = request.GET.get("q", None)
-        highlight = request.GET.get("highlight", None)
-        facets = request.GET.get("facets", None)
+        # Iterate over the query parameters and apply filters
+        for key, value in params.items():
+            # Skip 'format' and 'callback' parameters, which are not filters
+            if key in ['format', 'callback']:
+                continue
 
-        # prepare a initial elk SearchQuerySet from Movie Model
-        sqs = SearchQuerySet().models(Movie)
+            # Apply filters based on the field name and value
+            if '__' in key:
+                field_name, filter_type = key.split('__')
+                lookup_expr = f'{field_name}__{filter_type}'
+                queryset = queryset.filter(**{lookup_expr: value})
+            else:
+                queryset = queryset.filter(**{key: value})
 
-        if query:
-            query_list = query.split(" ")  # split the query string
-            qs_item = reduce(
-                operator.and_, (Q(text__contains=item) for item in query_list)
-            )  # filter by every item in query_list - ( using OR filter)
-            sqs = sqs.filter(qs_item)
-
-            if highlight:
-                # if any value is passed to highlight then highlight the query
-                sqs = sqs.highlight()
-
-        if facets:
-            sqs = self.filter_sqs_by_facets(sqs, facets)
-
-        page = self.paginate_queryset(sqs, request, view=self)
-        movie_serializer = self.serializer_class(
-            page, many=True, context={"request": request}
-        )
-        facets = self.get_facet_fields(sqs)
-        summary = self.prepare_summary(sqs)
-        data = {"movies": movie_serializer.data, "facets": facets, "summary": summary}
-        return Response(data, status=status.HTTP_200_OK)
-
-    def filter_sqs_by_facets(self, sqs, facets):
-        facet_list = facets.split(",")
-        for facet in facet_list:
-            facet_key, facet_value = facet.split(":")
-            # narrow down the results by facet
-            sqs = sqs.narrow(f"{facet_key}:{facet_value}")
-        return sqs
-
-    def get_facet_fields(self, sqs):
-        # return all the possible facet fields from given SQS
-        facet_fields = (
-            sqs.facet("year")
-            .facet("rating")
-            .facet("global_ranking")
-            .facet("length")
-            .facet("revenue")
-            .facet("country")
-            .facet("genre")
-        )
-        return facet_fields.facet_counts()
-
-    def prepare_summary(self, sqs):
-        # return the summary of the search results
-        summary = {
-            "total": sqs.count(),
-            "next_page": self.get_next_link(),
-            "previous_page": self.get_previous_link(),
-        }
-        return summary
+        return queryset

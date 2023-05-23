@@ -1,3 +1,6 @@
 {{object.title}}
 {{object.description}}
 {{object.director.name}}
+{{object.genre.name}}
+{{object.year}}
+{{object.rating}}

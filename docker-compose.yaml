@@ -65,8 +65,6 @@ services:
     ports:
       - 8000:8000
     image: python:3.11-slim-buster
-    environment:
-      - HAYSTACK_CONNECTIONS=default
     command: gunicorn rest_project.wsgi --bind 0.0.0.0:8000  --timeout 1800
     depends_on:
       - db

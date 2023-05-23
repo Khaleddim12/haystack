@@ -15,7 +15,9 @@ class MovieIndex(indexes.SearchIndex, indexes.Indexable):
     genre = indexes.CharField(model_attr="genre", faceted=True)
     country = indexes.CharField(model_attr="country", faceted=True)
     director = indexes.CharField(model_attr="director", faceted=True)
-
+    autocomplete = indexes.EdgeNgramField()
+    
+    
     def get_model(self):
         return Movie
 
@@ -30,3 +32,4 @@ class MovieIndex(indexes.SearchIndex, indexes.Indexable):
 
     def index_queryset(self, using=None):
         return self.get_model().objects.all()
+    

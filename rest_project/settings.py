@@ -47,7 +47,7 @@ ELASTICSEARCH_DSL = {
 # HAYSTACK CONFIGURATION
 HAYSTACK_CONNECTIONS = {
     "default": {
-        "ENGINE": "haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine",
+        "ENGINE": "haystack.backends.elasticsearch7_backend.Elasticsearch7SearchEngine",
         "URL": "http://elasticsearch:9200/",
         "INDEX_NAME": "my_index",
     },
